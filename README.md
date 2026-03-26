@@ -1,42 +1,58 @@
 # Codex Gateway
 
-Self-hosted gateway that bridges ChatGPT Codex backend to an OpenAI-compatible API. Handles OAuth login, token refresh, and protocol conversion automatically.
+ChatGPT Codex backend → OpenAI-compatible API gateway.
+
+## Install
+
+Download the binary for your platform from [GitHub Releases](https://github.com/Collections/Agents/codex-gateway/releases/latest), then:
+
+```bash
+chmod +x codex-gateway-* && sudo mv codex-gateway-* /usr/local/bin/codex-gateway
+```
+
+Or build from source (Go 1.24+): `make build`
 
 ## Quick Start
 
 ```bash
-# Download from GitHub Releases or build from source
-make build
-
-# Start (opens browser for OAuth login on first run)
-./codex-gateway serve
+codex-gateway serve
 ```
 
-That's it. The gateway listens on `:8721` with an auto-generated API key.
-
-Check the terminal output for the API key file location, or read it directly:
+First run opens browser for OAuth login. After that, check connection info:
 
 ```bash
-cat ~/.codex-gateway/api-key
+cat ~/.codex-gateway/connection-info
 ```
 
-## CLI Flags
+## Background
 
-```
-./codex-gateway serve [flags]
+```bash
+# Start in background
+nohup ./codex-gateway serve > /dev/null 2>&1 & echo $! > ~/.codex-gateway/pid
 
-  --listen   Listen address (default :8721)
-  --api-key  Downstream API key (auto-generated if omitted)
-  --proxy    Outbound proxy URL (http/https/socks5)
-
-./codex-gateway auth login [flags]
-
-  --proxy    Outbound proxy URL
+# Stop
+kill $(cat ~/.codex-gateway/pid)
 ```
 
-## Config File (Optional)
+## Flags
 
-Place `~/.codex-gateway/config.yaml` to override defaults. All fields are optional:
+```
+./codex-gateway serve
+  --listen      Listen address (default :8721)
+  --api-key     Downstream API key (auto-generated if omitted)
+  --proxy       Outbound proxy (http/https/socks5)
+  --log-level   trace, debug, info, warn (default), error
+```
+
+| Log level | Output |
+|-----------|--------|
+| `warn` | Warnings and errors only |
+| `debug` | + upstream request/response metadata |
+| `trace` | + full upstream request/response body |
+
+## Config (Optional)
+
+`~/.codex-gateway/config.yaml` — all fields optional, CLI flags take precedence:
 
 ```yaml
 listen: ":8721"
@@ -44,43 +60,22 @@ proxy_url: "http://127.0.0.1:7890"
 downstream_api_key: "your-key"
 ```
 
-CLI flags take precedence over the config file.
-
-## API
-
-All `/v1/*` endpoints require `Authorization: Bearer <api-key>`.
-
-| Method | Path | Description |
-|--------|------|-------------|
-| GET | `/healthz` | Health check (no auth) |
-| GET | `/v1/models` | List models |
-| POST | `/v1/chat/completions` | Chat completions |
-| POST | `/v1/responses` | Codex responses passthrough |
-
-Example:
-
-```bash
-curl http://localhost:8721/v1/chat/completions \
-  -H "Content-Type: application/json" \
-  -H "Authorization: Bearer $(cat ~/.codex-gateway/api-key)" \
-  -d '{"model":"gpt-5.1-codex","messages":[{"role":"user","content":"Hello!"}]}'
-```
-
 ## Data Directory
 
-All runtime data lives in `~/.codex-gateway/`:
+`~/.codex-gateway/`
 
 | File | Purpose |
 |------|---------|
-| `config.yaml` | Optional config overrides |
+| `connection-info` | Endpoint, API key, and curl example |
 | `oauth-token.json` | OAuth tokens (auto-refreshed) |
 | `api-key` | Auto-generated downstream API key |
+| `config.yaml` | Optional config overrides |
 
 ## Build
 
 ```bash
 make build          # current platform
-make build-all      # linux/macOS x arm64/amd64
+make build-all      # linux/macOS × arm64/amd64
 ```
 
 ## License
