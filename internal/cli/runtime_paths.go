@@ -8,109 +8,71 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-	"time"
 
 	"github.com/Collections/Agents/codex-gateway/internal/auth"
 	"github.com/Collections/Agents/codex-gateway/internal/config"
 	"github.com/Collections/Agents/codex-gateway/internal/oauth"
 )
 
-type runtimePaths struct {
-	Workdir    string
-	ConfigPath string
-	TokenPath  string
-	APIKeyPath string
-}
-
 type runtime struct {
 	Cfg         config.Config
 	Logger      *slog.Logger
 	Store       *auth.FileStore
 	OAuthClient *oauth.Client
-	TokenPath   string
-	APIKeyPath  string
+	DataDir     string
 }
 
-func bootstrap(workdir, configFile string) (*runtime, error) {
-	paths, err := resolveRuntimePaths(workdir, configFile)
-	if err != nil {
-		return nil, err
-	}
-
-	cfg, err := config.Load(paths.ConfigPath)
+func bootstrap(proxyURL, logLevel string) (*runtime, error) {
+	cfg, err := config.Load()
 	if err != nil {
 		return nil, fmt.Errorf("load config: %w", err)
 	}
 
-	logger := newRootLogger(cfg.Logging.Level)
+	if proxyURL != "" {
+		cfg.ProxyURL = proxyURL
+	}
+	if err := cfg.Validate(); err != nil {
+		return nil, err
+	}
 
-	httpClient, err := newHTTPClient(30*time.Second, cfg.Network.ProxyURL)
+	logger := newRootLogger(logLevel)
+
+	httpClient, err := newHTTPClient(30, cfg.ProxyURL)
 	if err != nil {
 		return nil, fmt.Errorf("build http client: %w", err)
 	}
 
 	oauthClient := oauth.NewClient(oauth.Config{
-		ClientID:          cfg.OAuth.ClientID,
-		ClientSecret:      cfg.OAuth.ClientSecret,
-		AuthorizeEndpoint: cfg.OAuth.AuthorizeEndpoint,
-		TokenEndpoint:     cfg.OAuth.TokenEndpoint,
-		RedirectHost:      cfg.OAuth.RedirectHost,
-		RedirectPort:      cfg.OAuth.RedirectPort,
-		RedirectPath:      cfg.OAuth.RedirectPath,
-		Originator:        cfg.OAuth.Originator,
-		Scopes:            cfg.OAuth.Scopes,
+		ClientID:          cfg.OAuthClientID,
+		AuthorizeEndpoint: cfg.OAuthAuthorize,
+		TokenEndpoint:     cfg.OAuthToken,
+		RedirectHost:      cfg.OAuthRedirectHost,
+		RedirectPort:      cfg.OAuthRedirectPort,
+		RedirectPath:      cfg.OAuthRedirectPath,
+		Originator:        cfg.OAuthOriginator,
+		Scopes:            cfg.OAuthScopes,
 	}, oauth.WithHTTPClient(httpClient))
+
+	dataDir, err := resolveDataDir()
+	if err != nil {
+		return nil, err
+	}
 
 	return &runtime{
 		Cfg:         cfg,
 		Logger:      logger,
-		Store:       auth.NewFileStore(paths.TokenPath),
+		Store:       auth.NewFileStore(filepath.Join(dataDir, "oauth-token.json")),
 		OAuthClient: oauthClient,
-		TokenPath:   paths.TokenPath,
-		APIKeyPath:  paths.APIKeyPath,
+		DataDir:     dataDir,
 	}, nil
 }
 
-func resolveRuntimePaths(workdir, configFile string) (runtimePaths, error) {
-	absWorkdir, err := filepath.Abs(strings.TrimSpace(workdir))
-	if err != nil {
-		return runtimePaths{}, fmt.Errorf("resolve workdir: %w", err)
-	}
-
-	info, err := os.Stat(absWorkdir)
-	if err != nil {
-		return runtimePaths{}, fmt.Errorf("stat workdir: %w", err)
-	}
-	if !info.IsDir() {
-		return runtimePaths{}, fmt.Errorf("workdir is not a directory: %s", absWorkdir)
-	}
-
-	resolvedConfig := configFile
-	if !filepath.IsAbs(configFile) {
-		resolvedConfig = filepath.Join(absWorkdir, configFile)
-	}
-	absConfig, err := filepath.Abs(resolvedConfig)
-	if err != nil {
-		return runtimePaths{}, fmt.Errorf("resolve config path: %w", err)
-	}
-
-	rel, err := filepath.Rel(absWorkdir, absConfig)
-	if err != nil || rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
-		return runtimePaths{}, fmt.Errorf("config path is outside of workdir: %s", absConfig)
-	}
-
+func resolveDataDir() (string, error) {
 	homeDir, err := os.UserHomeDir()
 	if err != nil {
-		return runtimePaths{}, fmt.Errorf("resolve home dir: %w", err)
+		return "", fmt.Errorf("resolve home dir: %w", err)
 	}
-	dataDir := filepath.Join(homeDir, ".codex-gateway")
-
-	return runtimePaths{
-		Workdir:    absWorkdir,
-		ConfigPath: absConfig,
-		TokenPath:  filepath.Join(dataDir, "oauth-token.json"),
-		APIKeyPath: filepath.Join(dataDir, "api-key"),
-	}, nil
+	return filepath.Join(homeDir, ".codex-gateway"), nil
 }
 
 func ensureAPIKey(path string) (string, error) {

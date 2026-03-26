@@ -6,9 +6,12 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"io"
 	"log/slog"
 	"net/http"
 	"strings"
+
+	"github.com/Collections/Agents/codex-gateway/internal/logging"
 )
 
 type TokenProvider interface {
@@ -64,7 +67,8 @@ func (c *Client) do(ctx context.Context, method, path string, body []byte, conte
 		path = "/" + path
 	}
 
-	req, err := http.NewRequestWithContext(ctx, method, c.baseURL+path, bytes.NewReader(body))
+	url := c.baseURL + path
+	req, err := http.NewRequestWithContext(ctx, method, url, bytes.NewReader(body))
 	if err != nil {
 		return nil, fmt.Errorf("create upstream request: %w", err)
 	}
@@ -85,12 +89,42 @@ func (c *Client) do(ctx context.Context, method, path string, body []byte, conte
 		}
 	}
 
+	// debug: request metadata
+	c.logger.DebugContext(ctx, "upstream request",
+		"method", method, "url", url,
+		"content_type", contentType,
+		"body_bytes", len(body),
+	)
+	// trace: full request body
+	c.logger.Log(ctx, logging.LevelTrace, "upstream request body", "body", string(body))
+
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("upstream request failed: %w", err)
 	}
 
-	c.logger.DebugContext(ctx, "upstream response", "method", method, "path", path, "status", resp.StatusCode)
+	// debug: response metadata
+	c.logger.DebugContext(ctx, "upstream response",
+		"method", method, "url", url,
+		"status", resp.StatusCode,
+		"content_type", resp.Header.Get("Content-Type"),
+		"content_length", resp.ContentLength,
+	)
+
+	// trace: buffer and log full response body, then replace the reader
+	if c.logger.Enabled(ctx, logging.LevelTrace) {
+		respBody, readErr := io.ReadAll(resp.Body)
+		resp.Body.Close()
+		if readErr != nil {
+			return nil, fmt.Errorf("read upstream response for trace: %w", readErr)
+		}
+		c.logger.Log(ctx, logging.LevelTrace, "upstream response body",
+			"status", resp.StatusCode,
+			"body", string(respBody),
+		)
+		resp.Body = io.NopCloser(bytes.NewReader(respBody))
+	}
+
 	return resp, nil
 }
 

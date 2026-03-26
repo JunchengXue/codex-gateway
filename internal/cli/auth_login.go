@@ -18,25 +18,23 @@ func newAuthCommand() *cobra.Command {
 }
 
 func newAuthLoginCommand() *cobra.Command {
-	var workdir string
-	var configFile string
+	var proxyURL string
 
 	cmd := &cobra.Command{
 		Use:   "login",
 		Short: "Run interactive OAuth login",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return runAuthLogin(cmd.Context(), workdir, configFile)
+			return runAuthLogin(cmd.Context(), proxyURL)
 		},
 	}
 
-	cmd.Flags().StringVar(&workdir, "workdir", ".", "Runtime working directory")
-	cmd.Flags().StringVar(&configFile, "config", "config.yaml", "Config file path (must be inside workdir)")
+	cmd.Flags().StringVar(&proxyURL, "proxy", "", "Outbound proxy URL (http/https/socks5)")
 
 	return cmd
 }
 
-func runAuthLogin(ctx context.Context, workdir, configFile string) error {
-	rt, err := bootstrap(workdir, configFile)
+func runAuthLogin(ctx context.Context, proxyURL string) error {
+	rt, err := bootstrap(proxyURL, "info")
 	if err != nil {
 		return err
 	}
@@ -54,6 +52,6 @@ func runAuthLogin(ctx context.Context, workdir, configFile string) error {
 		return fmt.Errorf("save token: %w", err)
 	}
 
-	fmt.Fprintf(os.Stdout, "Login successful. Token saved to %s\n", rt.TokenPath)
+	fmt.Fprintln(os.Stdout, "Login successful.")
 	return nil
 }
