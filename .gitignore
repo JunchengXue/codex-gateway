@@ -13,7 +13,6 @@
 
 # Runtime artifacts
 oauth-token.json
-config.yaml
 logs/
 
 # IDE

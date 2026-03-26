@@ -53,14 +53,16 @@ type CodexConfig struct {
 }
 
 func Load(path string) (Config, error) {
+	var cfg Config
+
 	b, err := os.ReadFile(path)
-	if err != nil {
+	if err != nil && !os.IsNotExist(err) {
 		return Config{}, fmt.Errorf("read config: %w", err)
 	}
-
-	var cfg Config
-	if err := yaml.Unmarshal(b, &cfg); err != nil {
-		return Config{}, fmt.Errorf("parse yaml: %w", err)
+	if err == nil {
+		if err := yaml.Unmarshal(b, &cfg); err != nil {
+			return Config{}, fmt.Errorf("parse yaml: %w", err)
+		}
 	}
 
 	applyDefaults(&cfg)
@@ -73,7 +75,7 @@ func Load(path string) (Config, error) {
 
 func applyDefaults(cfg *Config) {
 	defaults := map[*string]string{
-		&cfg.Server.Listen:           ":8080",
+		&cfg.Server.Listen:           ":8721",
 		&cfg.Logging.Level:           "info",
 		&cfg.Codex.BaseURL:           "https://chatgpt.com",
 		&cfg.Codex.ResponsesPath:     "/backend-api/codex/responses",
@@ -105,10 +107,6 @@ func applyDefaults(cfg *Config) {
 }
 
 func (c Config) Validate() error {
-	if strings.TrimSpace(c.Auth.DownstreamAPIKey) == "" {
-		return fmt.Errorf("missing required field: auth.downstream_api_key")
-	}
-
 	if proxyURL := strings.TrimSpace(c.Network.ProxyURL); proxyURL != "" {
 		u, err := url.Parse(proxyURL)
 		if err != nil || !u.IsAbs() || strings.TrimSpace(u.Hostname()) == "" {

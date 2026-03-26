@@ -19,25 +19,44 @@ import (
 func newServeCommand() *cobra.Command {
 	var workdir string
 	var configFile string
+	var listen string
+	var apiKey string
 
 	cmd := &cobra.Command{
 		Use:   "serve",
 		Short: "Run gateway HTTP server",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return runServe(cmd.Context(), workdir, configFile)
+			return runServe(cmd.Context(), workdir, configFile, listen, apiKey)
 		},
 	}
 
 	cmd.Flags().StringVar(&workdir, "workdir", ".", "Runtime working directory")
 	cmd.Flags().StringVar(&configFile, "config", "config.yaml", "Config file path (must be inside workdir)")
+	cmd.Flags().StringVar(&listen, "listen", "", "Listen address (overrides config, default :8721)")
+	cmd.Flags().StringVar(&apiKey, "api-key", "", "Downstream API key (overrides config)")
 
 	return cmd
 }
 
-func runServe(ctx context.Context, workdir, configFile string) error {
+func runServe(ctx context.Context, workdir, configFile, listen, apiKey string) error {
 	rt, err := bootstrap(workdir, configFile)
 	if err != nil {
 		return err
+	}
+
+	if listen != "" {
+		rt.Cfg.Server.Listen = listen
+	}
+	if apiKey != "" {
+		rt.Cfg.Auth.DownstreamAPIKey = apiKey
+	}
+	if rt.Cfg.Auth.DownstreamAPIKey == "" {
+		key, err := ensureAPIKey(rt.APIKeyPath)
+		if err != nil {
+			return fmt.Errorf("ensure api key: %w", err)
+		}
+		rt.Cfg.Auth.DownstreamAPIKey = key
+		rt.Logger.InfoContext(ctx, "using auto-generated api key", "path", rt.APIKeyPath)
 	}
 
 	if err := ensureValidToken(ctx, rt); err != nil {

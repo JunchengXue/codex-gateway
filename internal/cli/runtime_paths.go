@@ -1,6 +1,8 @@
 package cli
 
 import (
+	"crypto/rand"
+	"encoding/hex"
 	"fmt"
 	"log/slog"
 	"os"
@@ -17,6 +19,7 @@ type runtimePaths struct {
 	Workdir    string
 	ConfigPath string
 	TokenPath  string
+	APIKeyPath string
 }
 
 type runtime struct {
@@ -25,6 +28,7 @@ type runtime struct {
 	Store       *auth.FileStore
 	OAuthClient *oauth.Client
 	TokenPath   string
+	APIKeyPath  string
 }
 
 func bootstrap(workdir, configFile string) (*runtime, error) {
@@ -63,6 +67,7 @@ func bootstrap(workdir, configFile string) (*runtime, error) {
 		Store:       auth.NewFileStore(paths.TokenPath),
 		OAuthClient: oauthClient,
 		TokenPath:   paths.TokenPath,
+		APIKeyPath:  paths.APIKeyPath,
 	}, nil
 }
 
@@ -94,9 +99,40 @@ func resolveRuntimePaths(workdir, configFile string) (runtimePaths, error) {
 		return runtimePaths{}, fmt.Errorf("config path is outside of workdir: %s", absConfig)
 	}
 
+	homeDir, err := os.UserHomeDir()
+	if err != nil {
+		return runtimePaths{}, fmt.Errorf("resolve home dir: %w", err)
+	}
+	dataDir := filepath.Join(homeDir, ".codex-gateway")
+
 	return runtimePaths{
 		Workdir:    absWorkdir,
 		ConfigPath: absConfig,
-		TokenPath:  filepath.Join(absWorkdir, "oauth-token.json"),
+		TokenPath:  filepath.Join(dataDir, "oauth-token.json"),
+		APIKeyPath: filepath.Join(dataDir, "api-key"),
 	}, nil
+}
+
+func ensureAPIKey(path string) (string, error) {
+	b, err := os.ReadFile(path)
+	if err == nil {
+		if key := strings.TrimSpace(string(b)); key != "" {
+			return key, nil
+		}
+	}
+
+	buf := make([]byte, 24)
+	if _, err := rand.Read(buf); err != nil {
+		return "", fmt.Errorf("generate api key: %w", err)
+	}
+	key := "cgw-" + hex.EncodeToString(buf)
+
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		return "", fmt.Errorf("create api key dir: %w", err)
+	}
+	if err := os.WriteFile(path, []byte(key+"\n"), 0o600); err != nil {
+		return "", fmt.Errorf("write api key: %w", err)
+	}
+
+	return key, nil
 }
