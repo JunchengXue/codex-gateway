@@ -4,7 +4,7 @@ ChatGPT Codex backend → OpenAI-compatible API gateway.
 
 ## Install
 
-Download the binary for your platform from [GitHub Releases](https://github.com/Collections/Agents/codex-gateway/releases/latest), then:
+Download the binary for your platform from [GitHub Releases](https://github.com/JunchengXue/codex-gateway/releases/latest), then:
 
 ```bash
 chmod +x codex-gateway-* && sudo mv codex-gateway-* /usr/local/bin/codex-gateway
