@@ -1,0 +1,30 @@
+server:
+  listen: ":8080"
+
+auth:
+  downstream_api_key: "replace-with-your-fixed-key"
+
+logging:
+  level: "info"  # debug, info, warn, error
+
+network:
+  proxy_url: ""  # e.g. http://127.0.0.1:7890
+
+oauth:
+  client_id: "app_EMoamEEZ73f0CkXaXp7hrann"
+  authorize_endpoint: "https://auth.openai.com/oauth/authorize"
+  token_endpoint: "https://auth.openai.com/oauth/token"
+  redirect_host: "localhost"
+  redirect_port: 1455
+  redirect_path: "/auth/callback"
+  originator: "opencode"
+  scopes:
+    - "openid"
+    - "profile"
+    - "email"
+    - "offline_access"
+
+codex:
+  base_url: "https://chatgpt.com"
+  responses_path: "/backend-api/codex/responses"
+  timeout_seconds: 60
