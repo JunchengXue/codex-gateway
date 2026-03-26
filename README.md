@@ -7,6 +7,9 @@ ChatGPT Codex backend → OpenAI-compatible API gateway.
 Download the binary for your platform from [GitHub Releases](https://github.com/JunchengXue/codex-gateway/releases/latest), then:
 
 ```bash
+# macOS only: the binary is not Apple-signed, remove quarantine to allow execution
+xattr -d com.apple.quarantine codex-gateway-*
+
 chmod +x codex-gateway-* && sudo mv codex-gateway-* /usr/local/bin/codex-gateway
 ```
 
