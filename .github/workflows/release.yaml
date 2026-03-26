@@ -1,0 +1,32 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+
+      - name: Build binaries
+        run: make build-all
+
+      - name: Create release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            codex-gateway-darwin-arm64
+            codex-gateway-darwin-amd64
+            codex-gateway-linux-arm64
+            codex-gateway-linux-amd64
+          generate_release_notes: true
