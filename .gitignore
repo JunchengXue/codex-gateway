@@ -1,5 +1,4 @@
 # Binaries
-codex-gateway
 *.exe
 *.exe~
 *.dll
