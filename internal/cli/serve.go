@@ -82,7 +82,7 @@ func runServe(ctx context.Context, listen, apiKey, proxyURL, logLevel string) er
 		return refreshed, nil
 	}, auth.WithLogger(rt.Logger))
 
-	upstreamHTTPClient, err := newHTTPClient(time.Duration(rt.Cfg.TimeoutSeconds)*time.Second, rt.Cfg.ProxyURL)
+	upstreamHTTPClient, err := newHTTPClient(time.Duration(rt.Cfg.UpstreamTimeoutSeconds)*time.Second, rt.Cfg.ProxyURL)
 	if err != nil {
 		return fmt.Errorf("build upstream http client: %w", err)
 	}

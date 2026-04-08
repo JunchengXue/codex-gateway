@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/Collections/Agents/codex-gateway/internal/auth"
 	"github.com/Collections/Agents/codex-gateway/internal/config"
@@ -37,7 +38,7 @@ func bootstrap(proxyURL, logLevel string) (*runtime, error) {
 
 	logger := newRootLogger(logLevel)
 
-	httpClient, err := newHTTPClient(30, cfg.ProxyURL)
+	httpClient, err := newHTTPClient(time.Duration(cfg.OAuthTimeoutSeconds)*time.Second, cfg.ProxyURL)
 	if err != nil {
 		return nil, fmt.Errorf("build http client: %w", err)
 	}

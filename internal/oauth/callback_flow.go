@@ -238,14 +238,28 @@ func (c *Client) postToken(ctx context.Context, form url.Values) (auth.Token, er
 	}
 
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		var errResp struct {
-			Code string `json:"error"`
+		var oauthErr struct {
+			Error            string `json:"error"`
+			ErrorDescription string `json:"error_description"`
 		}
-		_ = json.Unmarshal(b, &errResp)
-		if errResp.Code != "" {
-			return auth.Token{}, fmt.Errorf("token request failed: %s", errResp.Code)
+		_ = json.Unmarshal(b, &oauthErr)
+		bodySnippet := strings.TrimSpace(string(b))
+		const maxBodyLog = 2048
+		if len(bodySnippet) > maxBodyLog {
+			bodySnippet = bodySnippet[:maxBodyLog] + "...(truncated)"
 		}
-		return auth.Token{}, fmt.Errorf("token request failed: status %d", resp.StatusCode)
+		var sb strings.Builder
+		fmt.Fprintf(&sb, "token request failed: HTTP %d", resp.StatusCode)
+		if oauthErr.Error != "" {
+			fmt.Fprintf(&sb, ", oauth_error=%q", oauthErr.Error)
+		}
+		if oauthErr.ErrorDescription != "" {
+			fmt.Fprintf(&sb, ", oauth_error_description=%q", oauthErr.ErrorDescription)
+		}
+		if bodySnippet != "" {
+			fmt.Fprintf(&sb, ", response_body=%q", bodySnippet)
+		}
+		return auth.Token{}, errors.New(sb.String())
 	}
 
 	var tr struct {

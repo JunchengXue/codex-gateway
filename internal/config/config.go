@@ -16,7 +16,8 @@ type Config struct {
 	DownstreamAPIKey string   `yaml:"downstream_api_key"`
 	CodexBaseURL     string   `yaml:"codex_base_url"`
 	CodexResponses   string   `yaml:"codex_responses_path"`
-	TimeoutSeconds   int      `yaml:"timeout_seconds"`
+	OAuthTimeoutSeconds    int `yaml:"oauth_timeout_seconds"`
+	UpstreamTimeoutSeconds int `yaml:"upstream_timeout_seconds"`
 	OAuthClientID    string   `yaml:"oauth_client_id"`
 	OAuthAuthorize   string   `yaml:"oauth_authorize_endpoint"`
 	OAuthToken       string   `yaml:"oauth_token_endpoint"`
@@ -65,7 +66,8 @@ func defaults() Config {
 		Listen:            ":8721",
 		CodexBaseURL:      "https://chatgpt.com",
 		CodexResponses:    "/backend-api/codex/responses",
-		TimeoutSeconds:    60,
+		OAuthTimeoutSeconds:    10,
+		UpstreamTimeoutSeconds: 300,
 		OAuthClientID:     "app_EMoamEEZ73f0CkXaXp7hrann",
 		OAuthAuthorize:    "https://auth.openai.com/oauth/authorize",
 		OAuthToken:        "https://auth.openai.com/oauth/token",
@@ -88,8 +90,11 @@ func applyDefaults(cfg *Config) {
 	if cfg.CodexResponses == "" {
 		cfg.CodexResponses = d.CodexResponses
 	}
-	if cfg.TimeoutSeconds == 0 {
-		cfg.TimeoutSeconds = d.TimeoutSeconds
+	if cfg.OAuthTimeoutSeconds == 0 {
+		cfg.OAuthTimeoutSeconds = d.OAuthTimeoutSeconds
+	}
+	if cfg.UpstreamTimeoutSeconds == 0 {
+		cfg.UpstreamTimeoutSeconds = d.UpstreamTimeoutSeconds
 	}
 	if cfg.OAuthClientID == "" {
 		cfg.OAuthClientID = d.OAuthClientID
